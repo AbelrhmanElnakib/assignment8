@@ -1,29 +1,36 @@
-const Book = require("../models/book.model");
-const Log = require("../models/log.model");
+const { getDB } = require("../config/DB");
 
 const addBook = async (req, res) => {
-  const book = await Book.create(req.body);
+  const db = getDB();
 
-  await Log.create({
-    message: `Book added: ${book.title}`
+  const result = await db.collection("books").insertOne(req.body);
+
+  await db.collection("logs").insertOne({
+    message: `Book added`,
+    createdAt: new Date()
   });
 
-  res.json(book);
+  res.json(result);
 };
 
 const addManyBooks = async (req, res) => {
-  const books = await Book.insertMany(req.body);
+  const db = getDB();
 
-  res.json(books);
+  const result = await db.collection("books").insertMany(req.body);
+  res.json(result);
 };
 
 const addLog = async (req, res) => {
-  const log = await Log.create(req.body);
-  res.json(log);
+  const db = getDB();
+
+  const result = await db.collection("logs").insertOne(req.body);
+  res.json(result);
 };
 
 const updateFutureBook = async (req, res) => {
-  const result = await Book.updateOne(
+  const db = getDB();
+
+  const result = await db.collection("books").updateOne(
     { title: "Future" },
     { $set: { year: 2022 } }
   );
@@ -32,106 +39,148 @@ const updateFutureBook = async (req, res) => {
 };
 
 const findBraveNewWorld = async (req, res) => {
-  const book = await Book.findOne({ title: "Brave New World" });
+  const db = getDB();
+
+  const book = await db
+    .collection("books")
+    .findOne({ title: "Brave New World" });
+
   res.json(book);
 };
 
 const findBooksBetweenYears = async (req, res) => {
+  const db = getDB();
   const { from, to } = req.query;
 
-  const books = await Book.find({
-    year: { $gte: Number(from), $lte: Number(to) }
-  });
+  const books = await db
+    .collection("books")
+    .find({ year: { $gte: Number(from), $lte: Number(to) } })
+    .toArray();
 
   res.json(books);
 };
 
 const findByGenre = async (req, res) => {
+  const db = getDB();
   const { genre } = req.query;
 
-  const books = await Book.find({ genres: genre });
+  const books = await db
+    .collection("books")
+    .find({ genres: genre })
+    .toArray();
+
   res.json(books);
 };
 
 const getBooksWithPagination = async (req, res) => {
-  const books = await Book.find()
+  const db = getDB();
+
+  const books = await db
+    .collection("books")
+    .find()
     .sort({ year: -1 })
     .skip(1)
-    .limit(2);
+    .limit(2)
+    .toArray();
 
   res.json(books);
 };
 
 const findYearIsInteger = async (req, res) => {
-  const books = await Book.find({
-    year: { $type: "int" }
-  });
+  const db = getDB();
+
+  const books = await db
+    .collection("books")
+    .find({ year: { $type: "int" } })
+    .toArray();
 
   res.json(books);
 };
 
 const excludeGenres = async (req, res) => {
-  const books = await Book.find({
-    genres: { $nin: ["Horror", "Science Fiction"] }
-  });
+  const db = getDB();
+
+  const books = await db
+    .collection("books")
+    .find({ genres: { $nin: ["Horror", "Science Fiction"] } })
+    .toArray();
 
   res.json(books);
 };
 
 const deleteBeforeYear = async (req, res) => {
+  const db = getDB();
   const { year } = req.query;
 
-  const result = await Book.deleteMany({
-    year: { $lt: Number(year) }
-  });
+  const result = await db
+    .collection("books")
+    .deleteMany({ year: { $lt: Number(year) } });
 
   res.json(result);
 };
 
 const booksAfter2000 = async (req, res) => {
-  const books = await Book.aggregate([
-    { $match: { year: { $gt: 2000 } } },
-    { $sort: { year: -1 } }
-  ]);
+  const db = getDB();
+
+  const books = await db
+    .collection("books")
+    .aggregate([
+      { $match: { year: { $gt: 2000 } } },
+      { $sort: { year: -1 } }
+    ])
+    .toArray();
 
   res.json(books);
 };
 
 const booksAfter2000Fields = async (req, res) => {
-  const books = await Book.aggregate([
-    { $match: { year: { $gt: 2000 } } },
-    {
-      $project: {
-        _id: 0,
-        title: 1,
-        author: 1,
-        year: 1
+  const db = getDB();
+
+  const books = await db
+    .collection("books")
+    .aggregate([
+      { $match: { year: { $gt: 2000 } } },
+      {
+        $project: {
+          _id: 0,
+          title: 1,
+          author: 1,
+          year: 1
+        }
       }
-    }
-  ]);
+    ])
+    .toArray();
 
   res.json(books);
 };
 
 const unwindGenres = async (req, res) => {
-  const books = await Book.aggregate([
-    { $unwind: "$genres" }
-  ]);
+  const db = getDB();
+
+  const books = await db
+    .collection("books")
+    .aggregate([{ $unwind: "$genres" }])
+    .toArray();
 
   res.json(books);
 };
 
 const booksWithLogs = async (req, res) => {
-  const result = await Book.aggregate([
-    {
-      $lookup: {
-        from: "logs",
-        localField: "title",
-        foreignField: "message",
-        as: "logs"
+  const db = getDB();
+
+  const result = await db
+    .collection("books")
+    .aggregate([
+      {
+        $lookup: {
+          from: "logs",
+          localField: "title",
+          foreignField: "message",
+          as: "logs"
+        }
       }
-    }
-  ]);
+    ])
+    .toArray();
 
   res.json(result);
 };
@@ -152,5 +201,4 @@ module.exports = {
   booksAfter2000Fields,
   unwindGenres,
   booksWithLogs
-
 };

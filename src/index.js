@@ -1,16 +1,15 @@
 const express = require("express");
-const connectDB = require("./config/DB");
+const { connectDB } = require("./config/DB");
+const bookRoutes = require("./routes/book.routes");
 
 const app = express();
 app.use(express.json());
 
 connectDB();
 
-app.get("/", (req, res) => {
-  res.send("Assignment 8 running");
-});
+app.use("/books", bookRoutes);
 
 app.listen(3000, () => {
-  console.log("Server running on port 3000");
+  console.log("Server running");
 });
 
